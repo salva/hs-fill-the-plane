@@ -2,6 +2,7 @@ import Data.Complex
 import Data.List (partition)
 import System.Random
 import Debug.Trace
+import qualified Data.PQueue.Prio.Min as Q
 
 type R = Double
 
@@ -52,6 +53,10 @@ box vs = let (x0, x1) = extremes $ map x vs
              (y0, y1) = extremes $ map y vs
          in Box (v x0 y0) (v x1 y1)
 
+inf = read "Infinity"
+
+fullPlaneBox = Box ((-inf) :+ (-inf)) (inf :+ inf)
+
 maxTailSize = 3
 
 orientationF X = x
@@ -88,7 +93,6 @@ newTree circles = if (length circles) <= maxTailSize
                                               else (Y, 0.5 * (y0 + y1))
                        in insertMany (Tree orientation p emptyTree emptyTree) circles
 
-
 randomCircle :: [R] -> (Circle, [R])
 randomCircle (x : y : r : rs) = ((Circle (v x y) (0.2 * r)), rs)
 randomCircles rs = let (circle, rs') = randomCircle rs
@@ -101,7 +105,19 @@ main = do
 dist2 c0 c1 = realPart (dc * (conjugate dc))
   where dc = c0 - c1
 
-dist p0 p1 = sqrt (dist2 p0 p1)
+dist :: V -> V -> R
+dist = dist2 . sqrt
+
+pointBoxDist2 :: V -> Box -> R
+pointBoxDist2 (x :+ y) (Box (x0 :+ y0) (x1 :+ y1)) =
+  let bestX = if x >= x1 then x1 else if x <= x0 then x0 else x
+      bestY = if y >= y1 then y1 else if y <= y0 then y0 else y
+      dx = bestX - x
+      dy = bestY - y
+  in dx * dx + dy * dy
+
+pointBoxDist :: V -> Box -> R
+pointBoxDist p box = sqrt $ pointBoxDist2 p box
 
 map2 _ [] = []
 map2 f (a1:a2:as) = (f a1 a2):(map2 f as)
@@ -116,6 +132,41 @@ newCircle x0 y0 r = Circle (v x0 y0) r
 circleDist (Circle p0 r0) (Circle p1 r1) = max 0 ((dist p0 p1) - r0 - r1)
 
 pointCircleDist p0 (Circle p1 r1) = max 0 ((dist p0 p1) - r1)
+
+pointCircleDist2 p circle = sqr $ pointCircleDist p circle
+  where sqr n = n * n
+
+divideBox :: Box -> Orientation -> R -> (Box, Box)
+divideBox (Box (x0 :+ y0) (x1 :+ y1)) orientation pivot =
+  case orientation of
+    X -> (Box (x0 :+ y0) (pivot :+ y1), Box (pivot :+ y0) (x1 :+ y1))
+    Y -> (Box (x0 :+ y0) (x1 :+ pivot), Box (x0 :+ pivot) (x1 :+ y1))
+
+nearestCircle :: Tree -> V -> (Maybe Circle, R)
+nearestCircle tree p = let box = fullPlaneBox
+                           queue = (Q.singleton inf (box, tree))::(Q.MinPQueue R (Box, Tree))
+                       in nearestInQueue queue p (Nothing, inf)
+  where nearestInQueue queue p old@(best,minD2) =
+          case (Q.getMin queue) of
+            Nothing -> (best, minD2)
+            Just (d2, (box, tree)) ->
+              if d2 > minD2
+              then (best, minD2)
+              else let queue' = Q.deleteMin queue
+                   in case tree of
+                        Tail circles -> nearestInQueue queue' p $ nearestInList circles p old
+                        Tree orientation pivot first second ->
+                          let (firstBox, secondBox) = divideBox box orientation pivot
+                              firstD2 = pointBoxDist2 p firstBox
+                              secondD2 = pointBoxDist2 p secondBox
+                              queue'' = Q.insert firstD2 (firstBox, first) queue'
+                              queue''' = Q.insert secondD2 (secondBox, second) queue''
+                          in nearestInQueue queue''' p old
+        nearestInList list p old = foldl pickBest old list
+        pickBest old@(_, minD2) circle = let d2 = pointCircleDist2 p circle
+                                         in if d2 < minD2
+                                            then (Just circle, d2)
+                                            else old
 
 tr :: (Show a) => String -> a -> a
 tr s a = trace (s ++ ": " ++ (show a)) a
