@@ -154,7 +154,4 @@ segmentCircle0IntersectionArea p0@(x0 :+ y0) p1@(x1 :+ y1) r =
                                       in (sector0Area r q1' p1, q1')
                   in s0 + s1 + 0.5 * (cross q0 (q1 - q0))
 
-  where sector0Area r p0 p1 = let v0 = versor p0
-                                  v1 = versor p1
-                                  angle = v0 / v1
-                              in r * (phase angle)
+  where sector0Area r p0 p1 = r * (phase $ p0 * (conjugate p1))
