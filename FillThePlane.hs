@@ -114,7 +114,7 @@ boxCircleIntersectionArea (Box (x0' :+ y0') (x1' :+ y1')) (Circle (xc :+ yc) r) 
             (segmentCircle0IntersectionArea p1  p10 r) +
             (segmentCircle0IntersectionArea p10 p0  r)
 
-scl s c = (s * (x c) :+ s * (y c))
+scl s (x :+ y) = (s * x) :+ (s * y)
 
 versor v0 = scl (1.0 / (magnitude v0)) v0
 
