@@ -95,10 +95,10 @@ tr s a = trace (s ++ ": " ++ (show a)) a
 
 boxCircleIntersectionArea (Box (x0' :+ y0') (x1' :+ y1')) (Circle (xc :+ yc) r) =
 
-  let x0 = x0' - xc
-      y0 = y0' - yc
-      x1 = x1' - xc
-      y1 = y1' - yc
+  let x0 = max (-r) (x0' - xc)
+      y0 = max (-r) (y0' - yc)
+      x1 = min   r  (x1' - xc)
+      y1 = min   r  (y1' - yc)
   in if (x0 >=  r) ||
         (x1 <= -r) ||
         (y0 >=  r) ||
@@ -114,11 +114,6 @@ boxCircleIntersectionArea (Box (x0' :+ y0') (x1' :+ y1')) (Circle (xc :+ yc) r) 
             (segmentCircle0IntersectionArea p1  p10 r) +
             (segmentCircle0IntersectionArea p10 p0  r)
 
-scl s (x :+ y) = (s * x) :+ (s * y)
-
-versor v0 = scl (1.0 / (magnitude v0)) v0
-
-cross (x0 :+ y0) (x1 :+ y1) = x0 * y1 - x1 * y0
 
 segmentCircle0IntersectionArea p0@(x0 :+ y0) p1@(x1 :+ y1) r =
   let x0_2 = x0 * x0
@@ -152,6 +147,9 @@ segmentCircle0IntersectionArea p0@(x0 :+ y0) p1@(x1 :+ y1) r =
                                  else let dp1 = scl (1 - alfa1) dp
                                           q1' = p1 - dp1
                                       in (sector0Area r q1' p1, q1')
-                  in s0 + s1 + 0.5 * (cross q0 (q1 - q0))
+                      dq = q1 - q0
+                  in s0 + s1 + 0.5 * (cross q0 dq)
 
   where sector0Area r p0 p1 = r * (phase $ p0 * (conjugate p1))
+        scl s (x :+ y) = (s * x) :+ (s * y)
+        cross (x0 :+ y0) (x1 :+ y1) = x0 * y1 - x1 * y0
