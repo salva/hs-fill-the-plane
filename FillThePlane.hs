@@ -1,7 +1,6 @@
-
 import Data.Complex
 import Data.List (partition)
--- import System.Random
+import System.Random
 import Debug.Trace
 
 type R = Double
@@ -16,54 +15,88 @@ x (a :+ _) = a
 y::V -> R
 y (_ :+ b) = b
 
-data Divider = X R | Y R
+data Circle = Circle { center::V, radius::R }
+  deriving (Show, Eq)
+
+data Orientation = X | Y
+  deriving (Show, Eq)
+
+data Tree = Tree { orientation::Orientation,
+                   pivot::R,
+                   first::Tree,
+                   second::Tree }
+          | Tail [Circle]
   deriving Show
 
-data Tree = Tree Divider Tree Tree | Tail [V]
+data Box = Box V V
   deriving Show
 
-before::Divider -> V -> Bool
-before (X a) v = if a < (x v)
-  then True
-  else False
+-- freeArea (Tree _ _ _ a) = a
+-- freeArea (Tail _ a) = a
+-- data Top = Top Box Tree
+-- newTop = let box = (Box 0 (1 :+ 1))
+--         in Top box (Tail [] (boxArea box))
 
-before(Y a) v = if a < (y v)
-  then True
-  else False
-
-maxTailSize = 3
-
-insert::Tree -> V -> Tree
-insert tree v = case tree of
-  Tail a -> newTree (v:a)
-  Tree div first second ->
-    case (before div v) of
-      True -> Tree div (insert first v) second
-      False -> Tree div first (insert second v)
-
-newTree vs = if (length vs) > maxTailSize
-  then divideTree vs
-  else Tail vs
-
-divideTree vs = let (x0, x1) = interval $ map x vs
-                    (y0, y1) = interval $ map y vs
-                    dx = x1 - x0
-                    dy = y1 - y0
-                    div = if (dx > dy)
-                      then X (0.5 * (x0 + x1))
-                      else Y (0.5 * (y0 + y1))
-                    (first, second) = partition (before div) vs
-                in Tree div (newTree first) (newTree second)
-
-interval::[R] -> (R, R)
-interval [] = error "Can't calculate segment box for an empty list"
-interval (v:vs) = foldl intervalAppend (v, v) vs
-  where intervalAppend accu pivot =
+extremes::[R] -> (R, R)
+extremes [] = error "Can't calculate segment box for an empty list"
+extremes (v:vs) = foldl extremesAppend (v, v) vs
+  where extremesAppend accu pivot =
           let (min, max) = accu
               newAccu | pivot < min = (pivot, max)
                       | pivot > max = (min, pivot)
                       | otherwise   = accu
           in newAccu
+
+box :: [V] -> Box
+box vs = let (x0, x1) = extremes $ map x vs
+             (y0, y1) = extremes $ map y vs
+         in Box (v x0 y0) (v x1 y1)
+
+maxTailSize = 3
+
+orientationF X = x
+orientationF Y = y
+
+insertMany :: Tree -> [Circle] -> Tree
+insertMany = foldl insert
+
+insert :: Tree -> Circle -> Tree
+insert tree circle@(Circle c r) =
+  case tree of
+    Tail circles -> newTree (circle:circles)
+    Tree orientation pivot first second ->
+      let f = orientationF orientation
+          newFirst  = if (((f c) - r) <= pivot)
+                      then first
+                      else insert first circle
+          newSecond = if (((f c) + r) >= pivot)
+                      then second
+                      else insert second circle
+      in Tree orientation pivot newFirst newSecond
+
+emptyTree = Tail []
+
+newTree :: [Circle] -> Tree
+newTree circles = if (length circles) <= maxTailSize
+                  then Tail circles
+                  else let (x0, x1) = extremes $ map (x . center) circles
+                           (y0, y1) = extremes $ map (y . center) circles
+                           dx = x1 - x0
+                           dy = y1 - y0
+                           (orientation, p) = if (dx > dy)
+                                              then (X, 0.5 * (x0 + x1))
+                                              else (Y, 0.5 * (y0 + y1))
+                       in insertMany (Tree orientation p emptyTree emptyTree) circles
+
+
+randomCircle :: [R] -> (Circle, [R])
+randomCircle (x : y : r : rs) = ((Circle (v x y) (0.2 * r)), rs)
+randomCircles rs = let (circle, rs') = randomCircle rs
+                   in circle:(randomCircles rs')
+
+main = do
+  gen <- getStdGen
+  putStrLn $ show $ newTree $ take 100 $ randomCircles $ ((randoms gen)::[R])
 
 dist2 c0 c1 = realPart (dc * (conjugate dc))
   where dc = c0 - c1
@@ -75,14 +108,8 @@ map2 f (a1:a2:as) = (f a1 a2):(map2 f as)
 map3 _ [] = []
 map3 f (a1:a2:a3:as) = (f a1 a2 a3):(map3 f as)
 
-data Box = Box V V
-
 boxArea (Box v0 v1) = (x d) * (y d)
   where d = v1 - v0
-
-
-data Circle = Circle V R
-  deriving Show
 
 newCircle x0 y0 r = Circle (v x0 y0) r
 
