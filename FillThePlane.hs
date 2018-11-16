@@ -121,22 +121,23 @@ versor v0 = scl (1.0 / (magnitude v0)) v0
 cross (x0 :+ y0) (x1 :+ y1) = x0 * y1 - x1 * y0
 
 segmentCircle0IntersectionArea p0@(x0 :+ y0) p1@(x1 :+ y1) r =
-  let x0x0 = x0 * x0
-      x1x1 = x1 * x1
-      y0y0 = y0 * y0
-      y1y1 = y1 * y1
+  let x0_2 = x0 * x0
+      x1_2 = x1 * x1
+      y0_2 = y0 * y0
+      y1_2 = y1 * y1
       x0x1 = x0 * x1
       y0y1 = y0 * y1
-      a = x0x0 + x1x1 - 2 * x0x1 + y0y0 + y1y1 - 2 * y0y1
-      b' = x0x1 - x0x0 + y0y1 - y0y0
-      c = x0x0 + y0y0 - r * r
+      x0_2_y0_2 = x0_2 + y0_2
+      a = x0_2 + x1_2 - 2 * x0x1 + y0_2 + y1_2 - 2 * y0y1
+      b' = x0_2_y0_2 - x0x1 - y0y1
+      c  = x0_2_y0_2 - r * r
       d = b' * b' - a * c
   in if d <= 0
      then sector0Area r p0 p1
      else let dp = p1 - p0
               sqrt_d = sqrt d
-              alfa0' = (-b' + sqrt_d) / a
-              alfa1' = (-b' - sqrt_d) / a
+              alfa0' = (b' + sqrt_d) / a
+              alfa1' = (b' - sqrt_d) / a
               (alfa0, alfa1) = if alfa0' < alfa1' then (alfa0', alfa1') else (alfa1', alfa0')
           in if (alfa0 >= 1.0) || (alfa1 <= 0.0)
              then sector0Area r p0 p1
