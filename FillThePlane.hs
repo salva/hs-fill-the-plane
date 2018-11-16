@@ -93,7 +93,7 @@ pointCircleDist p0 (Circle p1 r1) = max 0 ((dist p0 p1) - r1)
 tr :: (Show a) => String -> a -> a
 tr s a = trace (s ++ ": " ++ (show a)) a
 
-boxCircleIntersectionArea (Box (x0' :+ y0') (x1' :+ y1')) circle@(Circle c@(xc :+ yc) r) =
+boxCircleIntersectionArea (Box (x0' :+ y0') (x1' :+ y1')) (Circle (xc :+ yc) r) =
 
   let x0 = x0' - xc
       y0 = y0' - yc
