@@ -1,9 +1,15 @@
 import Data.Complex
 import Data.List (partition)
+import Lucid.Svg
 import Data.List.Unique (sortUniq)
 import System.Random
 import Debug.Trace
+import Data.Text (pack)
 import qualified Data.PQueue.Prio.Min as Q
+
+
+tr :: (Show a) => String -> a -> a
+tr s a = trace (s ++ ": " ++ (show a)) a
 
 type R = Double
 
@@ -18,7 +24,11 @@ y::V -> R
 y (_ :+ b) = b
 
 data Circle = Circle { center::V, radius::R }
-  deriving (Show, Eq, Ordo)
+  deriving (Show, Eq)
+
+instance Ord Circle where
+  compare (Circle (x0 :+ y0) r0) (Circle (x1 :+ y1) r1) =
+    (compare r0 r1) `mappend` (compare x0 x1) `mappend` (compare y0 y1)
 
 data Orientation = X | Y
   deriving (Show, Eq)
@@ -72,10 +82,10 @@ insert tree circle@(Circle c r) =
     Tail circles -> newTree (circle:circles)
     Tree orientation pivot first second ->
       let f = orientationF orientation
-          newFirst  = if (((f c) - r) <= pivot)
+          newFirst  = if (((f c) + r) <= pivot)
                       then first
                       else insert first circle
-          newSecond = if (((f c) + r) >= pivot)
+          newSecond = if (((f c) - r) >= pivot)
                       then second
                       else insert second circle
       in Tree orientation pivot newFirst newSecond
@@ -163,13 +173,13 @@ class Metric t where
   boxDist :: t -> Box -> R
   circleDist :: t -> Circle -> R
 
-nearestCircle :: (Metric m) => Tree -> m -> (Maybe Circle, R)
-nearestCircle tree m = let box = fullPlaneBox
-                           queue = (Q.singleton inf (box, tree))::(Q.MinPQueue R (Box, Tree))
-                       in nearestInQueue queue m (Nothing, inf)
-  where nearestInQueue queue m old@(best,minD) =
+nearestCircle :: (Metric m) => Tree -> m -> (Maybe Circle, R) -> (Maybe Circle, R)
+nearestCircle tree m (bestSoFar, d) = let box = fullPlaneBox
+                                          queue = (Q.singleton inf (box, tree))::(Q.MinPQueue R (Box, Tree))
+                                      in nearestInQueue queue m (bestSoFar, d)
+  where nearestInQueue queue m old@(bestSoFar,minD) =
           case (Q.getMin queue) of
-            Nothing -> (best, minD)
+            Nothing -> (bestSoFar, minD)
             Just (d, (box, tree)) ->
               if d > minD
               then old
@@ -244,9 +254,6 @@ instance Metric AdjacentCircleRadiusMetric where
        then inf
        else 0.5 * (yc * yc / xc_rc + xc - rc)
 
-tr :: (Show a) => String -> a -> a
-tr s a = trace (s ++ ": " ++ (show a)) a
-
 boxCircleIntersectionArea (Box (x0' :+ y0') (x1' :+ y1')) (Circle (xc :+ yc) r) =
 
   let x0 = max (-r) (x0' - xc)
@@ -268,6 +275,8 @@ boxCircleIntersectionArea (Box (x0' :+ y0') (x1' :+ y1')) (Circle (xc :+ yc) r) 
             (segmentCircle0IntersectionArea p1  p10 r) +
             (segmentCircle0IntersectionArea p10 p0  r)
 
+
+scl s (x :+ y) = (s * x) :+ (s * y)
 
 segmentCircle0IntersectionArea p0@(x0 :+ y0) p1@(x1 :+ y1) r =
   let x0_2 = x0 * x0
@@ -305,14 +314,13 @@ segmentCircle0IntersectionArea p0@(x0 :+ y0) p1@(x1 :+ y1) r =
                   in s0 + s1 + 0.5 * (cross q0 dq)
 
   where sector0Area r p0 p1 = r * (phase $ p0 * (conjugate p1))
-        scl s (x :+ y) = (s * x) :+ (s * y)
         cross (x0 :+ y0) (x1 :+ y1) = x0 * y1 - x1 * y0
 
 
-randomCircle :: [R] -> (Circle, [R])
-randomCircle (x : y : r : rs) = ((Circle (v x y) (0.2 * r)), rs)
-randomCircles rs = let (circle, rs') = randomCircle rs
-                   in circle:(randomCircles rs')
+-- randomCircle :: [R] -> (Circle, [R])
+-- randomCircle (x : y : r : rs) = ((Circle (v x y) (0.2 * r)), rs)
+-- randomCircles rs = let (circle, rs') = randomCircle rs
+--                    in circle:(randomCircles rs')
 
 data Line = Line V V
 
@@ -327,9 +335,73 @@ treeLines (Tree orientation pivot first second) outerBox@(Box (x0 :+ y0) (x1 :+ 
 treeCircles (Tail circles) = circles
 treeCircles (Tree _ _ f s) = treeCircles f ++ treeCircles s
 
-main = do
-  gen <- getStdGen
-  putStrLn $ show $ sortUniq $ treeCircles $ newTree $ take 100 $ randomCircles $ ((randoms gen)::[R])
+-- foo a = do
+--   gen <- getStdGen
+--   let circles = take a $ randomCircles ((randoms gen)::[R])
+--   let tree = newTree circles
+--   putStrLn "Original"
+--   mapM (putStrLn . show) circles
+--   putStrLn "Tree"
+--   putStrLn $ show tree
+--   putStrLn "From tree"
+--   mapM (putStrLn . show) $ sortUniq $ treeCircles tree
+--   putStrLn "Non unique"
+--   mapM (putStrLn . show) $ treeCircles $ tree
+--   return ()
 
+randomTree :: Int -> IO ()
+randomTree n = do
+  gen0 <- getStdGen
+  let (tree, gen1) = insertRandomCircles (newTree []) n gen0
+  putStrLn $ show tree
+  putStrLn "From tree"
+  mapM (putStrLn . show) $ sortUniq $ treeCircles tree
+  putStrLn "Non unique"
+  mapM (putStrLn . show) $ treeCircles $ tree
+  return ()
 
+svgCircles [] = return ()
+svgCircles ((Circle (x :+ y) r):cs) = do
+  circle_ [cx_ (pack $ show x), cy_ (pack $ show y), r_ (pack $ show r), fill_ (pack "green")]
+  svgCircles cs
 
+scaleCircle s (Circle c r) = Circle (scl s c) (s * r)
+
+svg content = do
+  doctype_
+  with (svg11_ content) [version_ (pack "1.1"), width_ (pack "200") , height_ (pack "200")]
+
+-- drawRandomTree :: Int -> IO ()
+drawRandomTree n = do
+  gen0 <- getStdGen
+  let (tree, gen1) = insertRandomCircles (newTree []) n gen0
+  print $ svg $ svgCircles $ map (scaleCircle 100.0) $ treeCircles $ tree
+  return ()
+
+insertRandomCircle :: (RandomGen g) => Tree -> g -> (Tree, g)
+insertRandomCircle tree0 gen0 = let (circle, gen1) = randomCircle tree0 gen0
+                                    tree1 = insert tree0 circle
+                                in (tree1, gen1)
+
+insertRandomCircles :: (RandomGen g) => Tree -> Int -> g -> (Tree, g)
+insertRandomCircles tree0 n gen0 = if n == 0
+                                   then (tree0, gen0)
+                                   else let (tree1, gen1) = insertRandomCircle tree0 gen0
+                                        in insertRandomCircles tree1 (n - 1) gen1
+
+randomCircle :: (RandomGen g) => Tree -> g -> (Circle, g)
+randomCircle tree gen0 =
+  let (x, gen1) = randomR (0, 1) gen0
+      (y, gen2) = randomR (0, 1) gen1
+      (r, gen3) = randomR (0, 0.2) gen2
+      p = v x y
+      (nearest1, d1) = nearestCircle tree (DistToPointMetric p) (Nothing, r)
+  in case nearest1 of
+       Nothing -> (Circle p r, gen3)
+       Just (Circle c1 r1) -> let v = if p == c1 then 1 else p - c1
+                                  v1 = scl (1.0 / (magnitude v)) v
+                                  o = c1 + (scl r1 v1)
+                                  (nearest2, d2) = nearestCircle tree (AdjacentCircleRadiusMetric o v1) (Nothing, r)
+                              in case nearest2 of
+                                   Nothing -> (Circle (o + (scl r v1)) r, gen3)
+                                   Just (Circle c2 r2) -> (Circle (o + (scl d2 v1)) d2, gen3)
