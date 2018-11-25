@@ -71,7 +71,7 @@ inf = read "Infinity"
 
 fullPlaneBox = Box ((-inf) :+ (-inf)) (inf :+ inf)
 
-maxTailSize = 6
+maxTailSize = 3
 
 orientationF X = x
 orientationF Y = y
@@ -116,41 +116,59 @@ insert tree box circle =
                       else second
       in Tree orientation pivot newFirst newSecond
 
+circleBoxIntersectionBox (Box p0 p1) (Circle c r) =
+  let (x0 :+ y0) = p0 - c
+      (x1 :+ y1) = p1 - c
+      r_2 = r * r
+      x_2 = r_2 - (sqr (if y0 > 0 then y0 else if y1 < 0 then y1 else 0))
+      y_2 = r_2 - (sqr (if x0 > 0 then x0 else if x1 < 0 then x1 else 0))
+  in if (x_2 < 0) || (y_2 < 0)
+     then (Box p0 p0) -- Intersection is empty
+     else let x = sqrt x_2
+              y = sqrt y_2
+              x0' = max (-x) x0
+              y0' = max (-y) y0
+              x1' = min x x1
+              y1' = min y y1
+          in Box ((x0' :+ y0') + c) ((x1' :+ y1') + c)
 
-data Border = Border { getL :: R, getEnd :: Int, getStart :: Int }
-  deriving (Show, Eq, Ord)
 
-circleBorders :: (V -> R) -> R -> R -> Circle -> [Border]
-circleBorders f b0 b1 (Circle v r) =
-  let l = f v
-      l0 = max (l - r) b0
-      l1 = min (l + r) b1
-  in [Border l0 0 1, Border l1 1 0]
-
-
-bestPivot1D :: (V -> R) -> R -> R -> [Circle] -> (Maybe R, Int)
-bestPivot1D f b0 b1 circles =
-  let borders = sort $ circles >>= (circleBorders f b0 b1)
-      n = length circles
+bestPivot1D :: (V -> R) -> [Box] -> (Maybe R, Int)
+bestPivot1D f boxes =
+  tr "bestL, bestEntropy" $
+  let n = length boxes
+      borders = sort $ boxes >>= (\(Box p0 p1) -> [(f p0, 0, 1), (f p1, 1, 0)])
       entropy0 = 2 * n * n
-      (_, _, _, _, bestL, bestEntropy) = foldl evaluate (0, n, b0, 2, Nothing, entropy0) borders
-        where evaluate (args@(before, after, lastL, lastEnd, bestL, bestEntropy)) (border@(Border nextL nextEnd nextStart)) =
+      (_, _, _, _, bestL, bestEntropy) = foldl evaluate (0, n, -inf, 2, Nothing, entropy0) borders
+        where evaluate (args@(before, after, lastL, lastEnd, bestL, bestEntropy)) (border@(nextL, nextEnd, nextStart)) =
                 let entropy = (sqr $ 2 * before - n) + (sqr $ 2 * after - n)
                 in if (lastEnd /= nextEnd) && (entropy < bestEntropy)
                    then (before + nextStart, after - nextEnd, nextL, nextEnd, Just (0.5 * (lastL + nextL)), entropy)
                    else (before + nextStart, after - nextEnd, nextL, nextEnd, bestL, bestEntropy)
   in (bestL, bestEntropy)
 
-bestPivot (Box p0 p1) circles =
-  let (bestX, bestEntropyX) = bestPivot1D x (x p0) (x p1) circles
-      (bestY, bestEntropyY) = bestPivot1D y (y p0) (y p1) circles
+boxDx (Box (x0 :+ _) (x1 :+ _)) = tr "dx" $ x1 - x0
+boxDy (Box (_ :+ y0) (_ :+ y1)) = tr "dy" $ y1 - y0
+
+bestPivot box circles =
+  let boxes = map (circleBoxIntersectionBox box) circles
+      (bestX, bestEntropyX) = bestPivot1D x boxes
+      (bestY, bestEntropyY) = bestPivot1D y boxes
   in case bestX of
        Nothing -> case bestY of
                     Nothing -> Nothing
                     Just y  -> Just (Y, y)
        Just x  -> case bestY of
                     Nothing -> Just (X, x)
-                    Just y  -> Just $ if bestEntropyX < bestEntropyY then (X, x) else (Y, y)
+                    Just y  -> let (Box (x0 :+ y0) (x1 :+ y1)) = box
+                                   dx = x1 - x0
+                                   dy = y1 - y0
+                                   (balancedEntropyX, balancedEntropyY) = tr "balancedEntropies" $
+                                     if dx == dy -- handle infinity
+                                     then (fromIntegral bestEntropyX, fromIntegral bestEntropyY)
+                                     else (dy * fromIntegral bestEntropyX, dx * fromIntegral bestEntropyY)
+                               in Just $ if balancedEntropyX < balancedEntropyY then (X, x) else (Y, y)
+
 
 emptyTree = Tail []
 
@@ -504,7 +522,7 @@ svgTreeTouchingBoxes tree box m best =
   let boxes = treeTailBoxes tree box
       boxesWithMetric = map (\box -> tr "boxWithMetric" (box, boxDist m box)) boxes
       filtered = [box | (box, dist) <- boxesWithMetric, dist < best]
-  in svgBoxes filtered
+  in return () --svgBoxes filtered
 
 svgBoxes [] = return ()
 svgBoxes ((Box (x0 :+ y0) (x1 :+ y1)):bs) =
