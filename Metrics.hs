@@ -1,3 +1,13 @@
+module Metrics ( Metric
+               , AdjacentCircleRadiusMetric
+               , DistToPointMetric
+               , boxDist
+               , circleDist)
+where
+
+import Data.Complex
+import Geo
+
 -- Metrics
 
 class Metric t where
@@ -46,10 +56,9 @@ data AdjacentCircleRadiusMetric = AdjacentCircleRadiusMetric V V V
 
 instance Metric AdjacentCircleRadiusMetric where
   boxDist (AdjacentCircleRadiusMetric c o v) b =
-    tr ("A-boxDist "++(show (o,v,b))) $
-    let (Box (x0 :+ y0) (x1 :+ y1)) = tr ("recoordinate "++(show (o, v, b))) $ recoordinateBox o v b
+    let (Box (x0 :+ y0) (x1 :+ y1)) = recoordinateBox o v b
     in if x1 <= 0
-       then tr ("x1 <= 0") inf
+       then inf
        else
          let y = if y1 <= 0 then -y1 else if y0 >= 0 then y0 else 0
              y_2 = y * y
@@ -61,10 +70,9 @@ instance Metric AdjacentCircleRadiusMetric where
                  else 0.5 * (y_2/x0 + x0)
 
   circleDist (AdjacentCircleRadiusMetric c o v) (circle@(Circle c1 _)) =
-    tr ("A-circleDist "++(show (o,v,circle))) $
     if c == c1
     then inf
-    else let (Circle (xc :+ yc) rc) = tr "reccordinateCircle" $ recoordinateCircle o v circle
+    else let (Circle (xc :+ yc) rc) = recoordinateCircle o v circle
              xc_rc = xc + rc
          in if xc_rc < 0
             then inf
