@@ -1,16 +1,11 @@
-module Apollonius where
+module Apollonius (apollonius) where
 
-import qualified Data.Vector.Unboxed as VU
+import qualified Data.Vector.Unboxed as VU 
 import Data.Vector.Unboxed (fromList, (!))
 import Data.Complex
-import Debug.Trace
 import Geo
 
-
---import Data.Vector.Unboxed
-
-
-apollonius :: Circle -> Circle -> Circle -> [Circle]
+type Equation = VU.Vector R
 
 -- EQ₀: (x - x₀)² + (y - y₀)² - (r + r₀)² = 0
 -- EQ₁: (x - x₁)² + (y - y₁)² - (r + r₁)² = 0
@@ -30,47 +25,7 @@ apollonius :: Circle -> Circle -> Circle -> [Circle]
 
 -- det₁ = 4((x₀ - x₁)(y₀ - y₂) - (y₀ - y₁)(x₀ - x₂))
 
-
-circleEq (Circle (xc :+ yc) rc) = fromList [xc*xc+yc*yc-rc*rc, -2*xc, -2*yc, -2*rc, 1, 1, -1]
-
-det eqA eqB ixA ixB =
-  (eqA!ixA)*(eqB!ixB) - (eqA!ixB)*(eqB!ixA)
-
-bestDet eqA eqB permutations = foldl pickBest (0, (0,0,0)) $ map detAndPerm permutations
-  where detAndPerm perm@(a, b, _) = (det eqA eqB a b, perm)
-        pickBest bestSoFar@(bestDet, bestPerm) current@(det, perm) =
-          if (abs bestDet) >= (abs det) then bestSoFar else current
-
-comb s0 s1 v0 v1 = s0 * v0 + s1 * v1
-
-sqrEq eq c c2 =
-  let a0 = eq!0
-      a2 = eq!c2
-      a0_2 = -a0 * a0
-      a2_2 = -a2 * a2
-      a0a2 = -2 * a0 * a2
-  in fromList $ case c of
-    1 -> case c2 of 
-      2 -> [a0_2,    0, a0a2,    0,    1, a2_2,    0] -- x y
-      3 -> [a0_2,    0,    0, a0a2,    1,    0, a2_2] -- x r
-    2 -> case c2 of
-      1 -> [a0_2, a0a2,    0,    0, a2_2,    1,    0] -- y x
-      3 -> [a0_2,    0,    0, a0a2,    0,    1, a2_2] -- y r
-    3 -> case c2 of
-      1 -> [a0_2, a0a2,    0,    0, a2_2,    0,    1] -- r x
-      2 -> [a0_2,    0, a0a2,    0,    0, a2_2,    1] -- r y
-
-solveEq2 a b c =
-  if a == 0
-  then [-c/b]
-  else let d = b*b-4*a*c
-       in if d < 0
-          then []
-          else if d == 0
-               then [-b/(2*a)]
-               else let sqrtD = sqrt d
-                    in [(b + sqrtD)/(-2*a), (b - sqrtD)/(-2*a)]
-
+apollonius :: Circle -> Circle -> Circle -> [Circle]
 apollonius circleA circleB circleC =
   let eqA = circleEq circleA
       eqB = circleEq circleB
@@ -104,3 +59,47 @@ apollonius circleA circleB circleC =
                3 -> zipWith3 makeCircle v1s v2s v0s
   where makeCircle a b c = Circle (a :+ b) c
         positiveRadius (Circle _ r) = r >= 0
+
+circleEq :: Circle -> Equation
+circleEq (Circle (xc :+ yc) rc) = fromList [xc*xc+yc*yc-rc*rc, -2*xc, -2*yc, -2*rc, 1, 1, -1]
+
+bestDet :: Equation -> Equation -> [(Int, Int, Int)] -> (R, (Int, Int, Int))
+bestDet eqA eqB permutations = foldl pickBest (0, (0,0,0)) $ map detAndPerm permutations
+  where detAndPerm perm@(a, b, _) = (det eqA eqB a b, perm)
+        pickBest bestSoFar@(bestDet, bestPerm) current@(det, perm) =
+          if (abs bestDet) >= (abs det) then bestSoFar else current
+        det eqA eqB ixA ixB = (eqA!ixA)*(eqB!ixB) - (eqA!ixB)*(eqB!ixA)
+
+comb :: R -> R -> R -> R -> R
+comb s0 s1 v0 v1 = s0 * v0 + s1 * v1
+
+sqrEq :: Equation -> Int -> Int -> Equation
+sqrEq eq c c2 =
+  let a0 = eq!0
+      a2 = eq!c2
+      a0_2 = -a0 * a0
+      a2_2 = -a2 * a2
+      a0a2 = -2 * a0 * a2
+  in fromList $ case c of
+    1 -> case c2 of 
+      2 -> [a0_2,    0, a0a2,    0,    1, a2_2,    0] -- x y
+      3 -> [a0_2,    0,    0, a0a2,    1,    0, a2_2] -- x r
+    2 -> case c2 of
+      1 -> [a0_2, a0a2,    0,    0, a2_2,    1,    0] -- y x
+      3 -> [a0_2,    0,    0, a0a2,    0,    1, a2_2] -- y r
+    3 -> case c2 of
+      1 -> [a0_2, a0a2,    0,    0, a2_2,    0,    1] -- r x
+      2 -> [a0_2,    0, a0a2,    0,    0, a2_2,    1] -- r y
+
+solveEq2 :: R -> R -> R -> [R]
+solveEq2 a b c =
+  if a == 0
+  then [-c/b]
+  else let d = b*b-4*a*c
+       in if d < 0
+          then []
+          else if d == 0
+               then [-b/(2*a)]
+               else let sqrtD = sqrt d
+                    in [(b + sqrtD)/(-2*a), (b - sqrtD)/(-2*a)]
+
