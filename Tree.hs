@@ -1,3 +1,10 @@
+module Tree where
+
+import Data.Complex
+import Data.List (partition, sort)
+import qualified Data.PQueue.Prio.Min as Q
+import Geo
+import Metrics
 
 maxTailSize = 3
 
@@ -15,14 +22,8 @@ treeCirclesWithDups tree = appendFrom tree []
         appendFrom (Tree _ _ first second) tail = appendFrom first (appendFrom second tail)
 
 insertMany :: Tree -> [Circle] -> Tree
-insertManyTrace tree0 [] = tree0
-insertManyTrace tree0 (c:cs) =
-  let tree1 = insert tree0 fullPlaneBox c
-      txt = unpack $ prettyText $ svg 100 $ do
-        svgTreeLines tree1 (Box 0 (100 :+ 100))
-        svgTreeCircles tree1
-        svgCircle c "yellow"
-  in insertManyTrace (trace txt tree1) cs
+insertMany tree0 [] = tree0
+insertMany tree0 (c:cs) = insertMany (insert tree0 fullPlaneBox c) cs
 
 insert :: Tree -> Box -> Circle -> Tree
 insert tree box circle =
@@ -40,7 +41,6 @@ insert tree box circle =
 
 bestPivot1D :: (V -> R) -> [Box] -> (Maybe R, Int)
 bestPivot1D f boxes =
-  tr "bestL, bestEntropy" $
   let n = length boxes
       borders = sort $ boxes >>= (\(Box p0 p1) -> [(f p0, 0, 1), (f p1, 1, 0)])
       entropy0 = 2 * n * n
@@ -65,7 +65,7 @@ bestPivot box circles =
                     Just y  -> let (Box (x0 :+ y0) (x1 :+ y1)) = box
                                    dx = x1 - x0
                                    dy = y1 - y0
-                                   (balancedEntropyX, balancedEntropyY) = tr "balancedEntropies" $
+                                   (balancedEntropyX, balancedEntropyY) =
                                      if dx == dy -- handle infinity
                                      then (fromIntegral bestEntropyX, fromIntegral bestEntropyY)
                                      else (dy * fromIntegral bestEntropyX, dx * fromIntegral bestEntropyY)

@@ -45,6 +45,7 @@ dist2 c0 c1 = norm2 $ c0 - c1
 dist :: V -> V -> R
 dist a b = sqrt $ dist2 a b
 
+crossProduct (x0 :+ y0) (x1 :+ y1) = x0*y1 - x1*y0
 
 -- Orientations
 
