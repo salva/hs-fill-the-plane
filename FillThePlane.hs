@@ -1,12 +1,11 @@
 import Data.Complex
-import Data.List (partition, sort)
 import Lucid.Svg
 import Data.List.Unique (sortUniq)
 import System.Random
 import Debug.Trace
 import Data.Text (pack)
 import Data.Text.Lazy (unpack)
-import qualified Data.PQueue.Prio.Min as Q
+
 
 {-# LANGUAGE OverloadedStrings #-}
 
