@@ -15,6 +15,8 @@ data Tree = Tree { orientation::Orientation,
           | Tail [Circle]
   deriving Show
 
+data Line = Line V V
+
 emptyTree = Tail []
 
 treeCirclesWithDups tree = appendFrom tree []
@@ -117,4 +119,13 @@ nearestCircleBruteForce :: (Metric m) => Tree -> m -> (Maybe Circle, R) -> (Mayb
 nearestCircleBruteForce tree m old = case tree of
   Tail cs -> nearestCircleInList cs m old
   Tree _ _ first second -> nearestCircleBruteForce first m $ nearestCircleBruteForce second m old
+
+
+treeLines (Tail _) _ = []
+treeLines (Tree orientation pivot first second) outerBox@(Box (x0 :+ y0) (x1 :+ y1)) =
+  let line = case orientation of
+               X -> (Line (pivot :+ y0) (pivot :+ y1))
+               Y -> (Line (x0 :+ pivot) (x1 :+ pivot))
+      (firstOuterBox, secondOuterBox) = divideBox outerBox orientation pivot
+  in line : (treeLines first firstOuterBox) ++ (treeLines second secondOuterBox)
 
