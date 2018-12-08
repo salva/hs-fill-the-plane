@@ -1,17 +1,20 @@
 import Data.Complex
 import Lucid.Svg
-import Data.List.Unique (sortUniq)
+--import Data.List.Unique (sortUniq)
 import System.Random
 import Debug.Trace
 import Data.Text (pack)
 import Data.Text.Lazy (unpack)
 
+import Geo
+import Tree
+import Metrics
 
 {-# LANGUAGE OverloadedStrings #-}
 
 tr :: (Show b) => String -> b -> b
---tr s a = trace (s ++ ": " ++ (show a)) a
-tr _ a = a
+tr s a = trace (s ++ ": " ++ (show a)) a
+--tr _ a = a
 
 
 -- randomCircle :: [R] -> (Circle, [R])
@@ -225,16 +228,16 @@ randomCircle tree gen0 =
           Nothing -> return ()
         svgCircle (Circle (x :+ y) r) (if nearest1 == Nothing then "yellow" else "blue")
 
-  in (trace txt newCircle, gen3)
+  in (newCircle, gen3)
 
 
-sampleTree = insertManyTrace (newTree []) [Circle (0 :+ 10) 5,
-                                           Circle (10 :+ 60) 15,
-                                           Circle (20 :+ 20) 5,
-                                           Circle (30 :+ 30) 2.5,
-                                           Circle (40 :+ 40) 10,
-                                           Circle (50 :+ 0) 15,
-                                           Circle (60 :+ 70) 5,
-                                           Circle (70 :+ 50) 25 ]
+sampleTree = insertMany (newTree []) [Circle (0 :+ 10) 5,
+                                       Circle (10 :+ 60) 15,
+                                       Circle (20 :+ 20) 5,
+                                       Circle (30 :+ 30) 2.5,
+                                       Circle (40 :+ 40) 10,
+                                       Circle (50 :+ 0) 15,
+                                       Circle (60 :+ 70) 5,
+                                       Circle (70 :+ 50) 25 ]
   
 

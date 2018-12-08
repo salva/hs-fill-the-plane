@@ -1,6 +1,6 @@
 module Metrics ( Metric
-               , AdjacentCircleRadiusMetric
-               , DistToPointMetric
+               , AdjacentCircleRadiusMetric (..)
+               , DistToPointMetric (..)
                , boxDist
                , circleDist
                , circleTouchesBox)
@@ -98,4 +98,3 @@ instance Metric ApolloniusRadiusMetric where
     in foldl min inf $ map getRadius sols
 
 
-        
