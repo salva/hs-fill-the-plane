@@ -2,11 +2,14 @@ module Tree where
 
 import Data.Complex
 import Data.List (partition, sort)
+import Data.List.Unique (sortUniq)
+import Debug.Trace
+
 import qualified Data.PQueue.Prio.Min as Q
 import Geo
 import Metrics
 
-maxTailSize = 3
+maxTailSize = 20
 
 data Tree = Tree { orientation::Orientation,
                    pivot::R,
@@ -15,13 +18,16 @@ data Tree = Tree { orientation::Orientation,
           | Tail [Circle]
   deriving Show
 
-data Line = Line V V
-
+emptyTree :: Tree
 emptyTree = Tail []
 
+treeCirclesWithDups :: Tree -> [Circle]
 treeCirclesWithDups tree = appendFrom tree []
   where appendFrom (Tail circles) tail = circles ++ tail
         appendFrom (Tree _ _ first second) tail = appendFrom first (appendFrom second tail)
+
+treeCircles :: Tree -> [Circle]
+treeCircles tree = sortUniq $ treeCirclesWithDups tree
 
 insertMany :: Tree -> [Circle] -> Tree
 insertMany tree0 [] = tree0
@@ -54,6 +60,8 @@ bestPivot1D f boxes =
                    else (before + nextStart, after - nextEnd, nextL, nextEnd, bestL, bestEntropy)
   in (bestL, bestEntropy)
 
+
+bestPivot :: Box -> [Circle] -> Maybe (Orientation, R)
 bestPivot box circles =
   let boxes = map (circleBoxIntersectionBox box) circles
       (bestX, bestEntropyX) = bestPivot1D x boxes
@@ -73,6 +81,7 @@ bestPivot box circles =
                                      else (dy * fromIntegral bestEntropyX, dx * fromIntegral bestEntropyY)
                                in Just $ if balancedEntropyX < balancedEntropyY then (X, x) else (Y, y)
 
+newTreeWithBox :: Box -> [Circle] -> Tree
 newTreeWithBox box circles = if (length circles) <= maxTailSize
                              then Tail circles
                              else case bestPivot box circles of
@@ -86,18 +95,26 @@ newTreeWithBox box circles = if (length circles) <= maxTailSize
 newTree :: [Circle] -> Tree
 newTree = newTreeWithBox fullPlaneBox
 
+tr1 :: Show t => String -> t -> t
+tr1 a b = trace (a ++ ": " ++ (show b)) b
+
 nearestCircleInList :: (Metric m) => [Circle] -> m -> (Maybe Circle, R) -> (Maybe Circle, R)
-nearestCircleInList list m old = foldl pickBest old list
-  where pickBest old@(_, minD) circle = let d = circleDist m circle
+nearestCircleInList list m old =
+  foldl pickBest old list
+  where pickBest old@(_, minD) circle = let d = tr1 ("d[" ++ (show circle) ++ "]") $ circleDist m circle
                                         in if d < minD
                                            then (Just circle, d)
                                            else old
 
 
-nearestCircle :: (Metric m) => Tree -> m -> (Maybe Circle, R) -> (Maybe Circle, R)
-nearestCircle tree m (bestSoFar, d) = let box = fullPlaneBox
-                                          queue = (Q.singleton 0 (box, tree))::(Q.MinPQueue R (Box, Tree))
-                                      in nearestInQueue queue m (bestSoFar, d)
+
+
+nearestCircleInTree :: (Metric m) => Tree -> m -> (Maybe Circle, R) -> (Maybe Circle, R)
+nearestCircleInTree tree m (bestSoFar, d) =
+  tr1 "nearestCircleInTree" $
+  let box = fullPlaneBox
+      queue = (Q.singleton 0 (box, tree))::(Q.MinPQueue R (Box, Tree))
+  in nearestInQueue queue m (bestSoFar, d)
   where nearestInQueue queue m old@(bestSoFar,minD) =
           case (Q.getMin queue) of
             Nothing -> (bestSoFar, minD)
@@ -120,6 +137,8 @@ nearestCircleBruteForce tree m old = case tree of
   Tail cs -> nearestCircleInList cs m old
   Tree _ _ first second -> nearestCircleBruteForce first m $ nearestCircleBruteForce second m old
 
+nearestCircle :: (Metric m) => Tree -> m -> (Maybe Circle, R) -> (Maybe Circle, R)
+nearestCircle = nearestCircleInTree
 
 treeLines (Tail _) _ = []
 treeLines (Tree orientation pivot first second) outerBox@(Box (x0 :+ y0) (x1 :+ y1)) =
@@ -129,3 +148,8 @@ treeLines (Tree orientation pivot first second) outerBox@(Box (x0 :+ y0) (x1 :+ 
       (firstOuterBox, secondOuterBox) = divideBox outerBox orientation pivot
   in line : (treeLines first firstOuterBox) ++ (treeLines second secondOuterBox)
 
+tailBoxes :: Tree -> Box -> [Box]
+tailBoxes tree box = case tree of
+  Tail _ -> [box]
+  Tree orientation pivot first second -> let (firstBox, secondBox) = divideBox box orientation pivot
+                                         in (tailBoxes first firstBox) ++ (tailBoxes second secondBox)

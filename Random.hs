@@ -2,10 +2,19 @@ module Random where
 
 import Data.Complex
 import System.Random
+import Debug.Trace (trace)
 
 import Tree
 import Geo
 import Metrics
+import Apollonius
+
+tr :: Show t => String -> t -> t
+-- tr a b = trace (a ++ ": " ++ (show b)) b
+tr _ b = b
+
+tr2 :: Show t => String -> t -> t
+tr2 a b = trace (a ++ ": " ++ (show b)) b
 
 randomTreeIO n = do
     g0 <- getStdGen
@@ -21,7 +30,7 @@ insertRandomCircles :: (RandomGen g) => Int -> Tree -> g -> (Tree, g)
 insertRandomCircles n tree0 g0
   | n == 0    = (tree0, g0)
   | otherwise = let (tree1, g1) = insertRandomCircle tree0 g0
-                in insertRandomCircles (n - 1) tree1 g1
+                in insertRandomCircles (tr2 "n" $ n - 1) tree1 g1
 
 insertRandomCircle :: (RandomGen g) => Tree -> g -> (Tree, g)
 insertRandomCircle tree0 g0 =
@@ -44,14 +53,24 @@ randomCircle tree g0 =
   in (circle, g2)
 
 adjustedCircle tree p r =
-  let (nearest1, _) = nearestCircle tree (DistToPointMetric p) (Nothing, r * r)
+  tr "adjustedCircle" $
+  let (nearest1, _) = tr "(nearest1, m1)" $ nearestCircle tree (DistToPointMetric p) (Nothing, r * r)
   in case nearest1 of
        Nothing -> Circle p r
-       Just (Circle c1 r1) ->
+       Just circle1@(Circle c1 r1) ->
          let v = if p == c1 then 1 else p - c1
              v1 = scl (1.0 / magnitude v) v
              o = c1 + (scl r1 v1)
-             (nearest2, m2) = nearestCircle tree (AdjacentCircleRadiusMetric c1 o v1) (Nothing, r)
+             (nearest2, m2) = tr "(nearest2, m2)" $ nearestCircle tree (AdjacentCircleRadiusMetric c1 o v1) (Nothing, r)
          in case nearest2 of
               Nothing -> Circle (o + scl r v1) r
-              Just _ -> Circle (o + scl m2 v1) m2
+              Just circle2 ->
+                let (nearest3, m3) = tr "(nearest3, m3)" $ nearestCircle tree (ApolloniusRadiusMetric circle1 circle2 o) (Nothing, r)
+                    in case nearest3 of
+                         Nothing -> Circle (o + scl m2 v1) m2
+                         Just circle3 ->
+                           let (f:fs) = tr "apollonius" $ apollonius circle1 circle2 circle3
+                           in foldl smallerCircle f fs
+                           where smallerCircle circle1 circle2 = if (getRadius circle1) <= (getRadius circle2)
+                                                                 then circle1
+                                                                 else circle2

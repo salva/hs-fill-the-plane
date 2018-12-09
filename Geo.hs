@@ -53,6 +53,12 @@ data Orientation = X | Y
   deriving (Show, Eq)
 
 
+-- Lines
+
+data Line = Line V V
+  deriving (Show)
+
+
 -- Boxes
 
 data Box = Box V V

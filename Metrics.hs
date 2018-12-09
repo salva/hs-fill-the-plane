@@ -1,6 +1,7 @@
 module Metrics ( Metric
                , AdjacentCircleRadiusMetric (..)
                , DistToPointMetric (..)
+               , ApolloniusRadiusMetric (..)
                , boxDist
                , circleDist
                , circleTouchesBox)
