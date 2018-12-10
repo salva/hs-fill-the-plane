@@ -55,7 +55,7 @@ adjustedCircle tree p r =
          in case nearest2 of
               Nothing -> Circle (o + scl r v1) r
               Just circle2 ->
-                let (nearest3, m3) = tR "(nearest3, m3)" $ nearestCircle tree (ApolloniusRadiusMetric circle1 circle2 o) (Nothing, r)
+                let (nearest3, m3) = tR "(nearest3, m3)" $ nearestCircle tree (ApolloniusRadiusMetric circle1 circle2 o m2) (Nothing, r)
                     in case nearest3 of
                          Nothing -> Circle (o + scl m2 v1) m2
                          Just circle3 ->
@@ -84,7 +84,7 @@ adjustedCirclePlus tree p r =
          in case nearest2 of
               Nothing -> (Circle (o + scl r v1) r, [])
               Just circle2 ->
-                let (nearest3, m3) = tR "(nearest3, m3)" $ nearestCircle tree (ApolloniusRadiusMetric circle1 circle2 o) (Nothing, r)
+                let (nearest3, m3) = tR "(nearest3, m3)" $ nearestCircle tree (ApolloniusRadiusMetric circle1 circle2 o m2) (Nothing, r)
                     in case nearest3 of
                          Nothing -> (Circle (o + scl m2 v1) m2, [])
                          Just circle3 ->

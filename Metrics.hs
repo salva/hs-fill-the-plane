@@ -84,18 +84,19 @@ instance Metric AdjacentCircleRadiusMetric where
             else 0.5 * (yc * yc / xc_rc + xc - rc)
 
 
-data ApolloniusRadiusMetric = ApolloniusRadiusMetric Circle Circle V
+data ApolloniusRadiusMetric = ApolloniusRadiusMetric Circle Circle V R
 
 instance Metric ApolloniusRadiusMetric where
 
-  boxDist (ApolloniusRadiusMetric circle0 circle1 _) b = max (circleBoxDist circle0 b) (circleBoxDist circle1 b)
+  boxDist (ApolloniusRadiusMetric circle0 circle1 _ _) b = max (circleBoxDist circle0 b) (circleBoxDist circle1 b)
 
-  circleDist (ApolloniusRadiusMetric circle0 circle1 reference) circle2 =
+  circleDist (ApolloniusRadiusMetric circle0 circle1 reference minR) circle2 =
     let c0 = getCenter circle1
         c1 = getCenter circle0
         v01 = c1 - c0
         sols = filter checkSide $ apollonius circle0 circle1 circle2
-          where checkSide (Circle c2 _) = (crossProduct v01 (reference - c0)) * (crossProduct v01 (c2 - c0)) >= 0
+          where checkSide (Circle c2 r) = (r >= minR) &&
+                                          ((crossProduct v01 (reference - c0)) * (crossProduct v01 (c2 - c0)) >= 0)
     in foldl min inf $ map getRadius sols
 
 

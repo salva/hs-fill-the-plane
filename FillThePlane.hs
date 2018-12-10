@@ -49,6 +49,6 @@ drawRandomTreePlus fn n = do
   let (ca : cb : _) = circles
   let (Just cc, _) = nearestCircle tree (DistToPointMetric (0.918 :+ 0.364)) (Nothing, inf)
   let sols = apollonius ca cb cc
-  writeTreePlus tree (ca:cb:cc:sols) fn
+  writeTreePlus tree (circle:ca:cb:cc:sols) fn
   return circles
 
