@@ -8,6 +8,7 @@ import Debug.Trace
 import qualified Data.PQueue.Prio.Min as Q
 import Geo
 import Metrics
+import Trace
 
 maxTailSize = 20
 
@@ -95,13 +96,10 @@ newTreeWithBox box circles = if (length circles) <= maxTailSize
 newTree :: [Circle] -> Tree
 newTree = newTreeWithBox fullPlaneBox
 
-tr1 :: Show t => String -> t -> t
-tr1 a b = trace (a ++ ": " ++ (show b)) b
-
 nearestCircleInList :: (Metric m) => [Circle] -> m -> (Maybe Circle, R) -> (Maybe Circle, R)
 nearestCircleInList list m old =
   foldl pickBest old list
-  where pickBest old@(_, minD) circle = let d = tr1 ("d[" ++ (show circle) ++ "]") $ circleDist m circle
+  where pickBest old@(_, minD) circle = let d = tR ("d[" ++ (show circle) ++ "]") $ circleDist m circle
                                         in if d < minD
                                            then (Just circle, d)
                                            else old
@@ -111,7 +109,7 @@ nearestCircleInList list m old =
 
 nearestCircleInTree :: (Metric m) => Tree -> m -> (Maybe Circle, R) -> (Maybe Circle, R)
 nearestCircleInTree tree m (bestSoFar, d) =
-  tr1 "nearestCircleInTree" $
+  tR "nearestCircleInTree" $
   let box = fullPlaneBox
       queue = (Q.singleton 0 (box, tree))::(Q.MinPQueue R (Box, Tree))
   in nearestInQueue queue m (bestSoFar, d)
