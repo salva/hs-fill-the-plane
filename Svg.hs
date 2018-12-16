@@ -21,13 +21,18 @@ ps a = fromString $ show a
 svgCircle :: Monad m => Circle -> String -> Lucid.Base.HtmlT m ()
 svgCircle (Circle p@(x :+ y) r) color =
    do
-     let fontSize = ps (1024 * r / 10)
-     circle_ [cx_ $ ps $ size * x, cy_ $ ps $ size * y, r_ $ ps $ size * r, stroke_ $ fromString color, fill_opacity_ $ fromString "0"]
-     text_ [x_ $ ps $ size * x, y_ $ ps $ size * y, font_size_ fontSize] $ fromString $ roundComplex p
+     circle_ [cx_ $ ps $ size * x, cy_ $ ps $ size * y, r_ $ ps $ size * r,
+              stroke_ $ fromString color, stroke_width_ $ fromString "0",
+              fill_ $ fromString color, fill_opacity_ $ fromString "100"]
+     -- let fontSize = ps (1024 * r / 5)
+     -- text_ [x_ $ ps $ size * x, y_ $ ps $ size * y, font_size_ fontSize] $ fromString $ roundComplex p
 
 svgCircles cs = svgCirclesColor cs "green"
 
 svgCirclesColor circles color = mapM (\circle -> svgCircle circle (fromString color)) circles
+
+svgCirclesWithColor circlesWithColor = mapM svgCircleWithColor circlesWithColor
+  where svgCircleWithColor (circle, color) = svgCircle circle (fromString color)
 
 svgLine (Line (x1 :+ y1) (x2 :+ y2)) =
   line_ [x1_ $ ps $ size * x1, y1_ $ ps $ size * y1, x2_ $ ps $ size * x2, y2_ $ ps $ size * y2, stroke_ $ fromString "black"]
